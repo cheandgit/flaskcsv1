@@ -1,0 +1,282 @@
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* Фиксируем полосу прокрутки для всего документа */
+        html {
+            overflow-y: scroll;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.2;
+            color: #333;
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            padding: 20px;
+            /* Убеждаемся, что полоса прокрутки всегда есть */
+            overflow-y: auto;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            /* Убираем минимальную высоту, чтобы контейнер адаптировался к содержимому */
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .controls {
+            background: #f1f3f4;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        select {
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 16px;
+            background: white;
+            min-width: 120px;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #6c757d;
+        }
+        
+        .summary {
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+            border-left: 4px solid #6c757d;
+        }
+        
+        .summary h2 {
+            margin-bottom: 10px;
+            font-size: 1.3em;
+            color: #495057;
+            font-weight: 400;
+        }
+        
+        .summary-value {
+            font-size: 1.8em;
+            font-weight: 300;
+            color: #2c3e50;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e9ecef;
+        }
+        
+        th, td {
+            /* padding: 12px 15px; */
+            padding: 6px 10px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        th {
+            background: #495057;
+            color: white;
+            font-weight: 400;
+            position: sticky;
+            top: 0;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .city-name {
+            font-weight: 500;
+        }
+        
+        .sales-amount {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            color: #2c3e50;
+        }
+        
+        .share-percent {
+            text-align: center;
+            font-weight: 500;
+            color: #495057;
+        }
+        
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            text-align: center;
+            border: 1px solid #f5c6cb;
+            display: none;
+        }
+
+        .others-row {
+            background-color: #f2f2f3;
+            font-weight: 500;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-style: italic;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+        }
+        
+        .data-section {
+            /* Плавные переходы для устранения резких изменений */
+            transition: opacity 0.3s ease;
+        }
+
+        /* Добавлены или обновлены стили */
+        /* --- Стили для основного блока данных (таблица + диаграмма) --- */
+        .data-section {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            margin: 20px 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .table-wrapper {
+            flex: 1 1 50%; /* Занимает 50% ширины, может сжиматься и расти */
+            min-width: 300px; /* Минимальная ширина, чтобы таблица не схлопывалась */
+        }
+
+        #pieChartContainer {
+            flex: 1 1 50%; /* Занимает 50% ширины */
+            position: sticky; /* "Прилипает" при прокрутке */
+            top: 20px;
+        }
+        /* --- Конец стилей для основного блока --- */
+
+        .state-name {
+            font-weight: 400; /* Обычная жирность */
+            font-size: 0.85em; /* Уменьшенный размер */
+            color: #6c757d; /* Более светлый цвет */
+        }
+
+        /* --- Блок сводной статистики --- */
+        .stats-simple {
+            margin-top: 30px;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #6c757d;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            background-color: #e9ecef;
+            border-left: 5px solid #6c757d;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .stat-value {
+            /* font-size: 1.5em; */
+            /* font-weight: 300; */
+            font-size: 1.1em;  /* 1em означает 100% от текущего размера */
+            font-weight: 700;
+            color: #495057;
+        }
+        /* --- Конец блока сводной статистики --- */
+
+        button { 
+            padding: 10px 14px; 
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            background: #549bda; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: 600;
+        }
+        button:hover {
+            background: #15619b;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .control-group {
+                flex-direction: column;
+            }
+            
+            select {
+                width: 100%;
+            }
+            
+            th, td {
+                padding: 8px 10px;
+                font-size: 14px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .data-section {
+                flex-direction: column; /* На узких экранах ставим блоки в столбец */
+            }
+        }

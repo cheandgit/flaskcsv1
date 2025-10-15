@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализ выручки по городам (index5.html - топ10 Город (Штат) + остальные, статистика, поправлены столбики)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Анализ выручки по городам</h1>
+        <!-- Блок выбора года -->
+        <div class="controls">
+            <div class="control-group">
+                <label for="yearSelect">Выберите год:</label>
+                <select id="yearSelect">
+                    <option value="">Загрузка годов...</option>
+                </select>
+            </div>
+        </div>
+        <!-- Блок с таблицей и круговой диаграммой -->
+        <div id="content">
+            <h2 style="text-align: center">Выручка по городам за <span id="currentYear"></span> год</h2>
+            <div id="emptyState" class="empty-state">
+                Выберите год для отображения данных
+            </div>
+            
+            <div id="dataContent" style="display: none;">
+                <div class="data-section" id="mainDataSection">
+                    <div class="table-wrapper" id="tableContainer">
+                        <table id="salesTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 5%">№</th>
+                                    <th style="width: 35%">Город / штат</th>
+                                    <th style="width: 10%">Заказы</th>
+                                    <th style="width: 30%; text-align: center">Выручка</th>
+                                    <th style="width: 20%; text-align: center">Доля, %</th>  
+                                </tr>
+                            </thead>
+                            <tbody id="salesBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="chart-wrapper" id="pieChartContainer"><canvas id="pieChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <!-- Статистика после таблицы -->
+        <div class="stats-simple">
+            <h3 style="text-align: center">Сводная информация</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Общая выручка за <span id="currentYearStats"></span> год</div>
+                    <span class="stat-value" id="totalSales">$0</span>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Всего заказов в топ-10</div>
+                    <span class="stat-value" id="ordersCount">0</span>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Выручка в топ-10</div>
+                    <span class="stat-value" id="top10Sales">$0</span>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Доля выручки топ-10</div>
+                    <span class="stat-value" id="top10Share">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Блок сравнения городов (размещен ниже) -->
+        <div class="comparison-section">
+            <h2 style="text-align: center">Сравнение городов по годам</h2>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <label for="city1Select">Город 1:</label>
+                    <select id="city1Select">
+                        <option value="">Загрузка...</option>
+                    </select>
+                    
+                    <label for="city2Select">Город 2:</label>
+                    <select id="city2Select">
+                        <option value="">Загрузка...</option>
+                    </select>
+                    
+                    <button onclick="loadSalesComparison()" >Сравнить города</button>
+                </div>
+            </div>
+
+            <div id="comparisonContent" class="chart-container" style="display: none; margin-top: 20px;">
+                <h3>Сравнение городов <span id="city1Name"></span> и <span id="city2Name"></span></h3>
+                <div class="chart-container">
+                    <div class="chart-wrapper">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="error" class="error"></div>
+    </div>
+
+    <script>
+        // Текущее состояние загрузки
+        let isLoading = false;
+        let pieChart, barChart;
+        Chart.register(ChartDataLabels);   // В начале обязательно зарегистрировать плагин (один раз в скрипте)
+
+        document.addEventListener('DOMContentLoaded', loadInitialData);
+
+        // Загрузка доступных годов
+        async function loadInitialData() {
+            try {
+                const response = await fetch('/api/data/metadata');
+                const data = await response.json();
+                
+                if (data.error) throw new Error(data.error);
+                
+                // Заполняем селекторы годов и городов
+                populateYearSelect(data.years);
+                populateCitySelects(data.cities);
+
+                // Автоматически выбираем последний год и загружаем данные
+                if (data.years.length > 0) {
+                    const latestYear = data.years[data.years.length - 1];
+                    document.getElementById('yearSelect').value = latestYear;
+                    await loadSalesData(latestYear);
+                }
+                // Устанавливаем значения по умолчанию для сравнения
+                // if (data.cities.length > 1) {
+                //     document.getElementById('city1Select').value = data.cities[0];
+                //     document.getElementById('city2Select').value = data.cities[1];
+                // }
+                
+            } catch (error) {
+                showError('Ошибка загрузки списка годов: ' + error.message);
+            }
+        }
+
+        function populateYearSelect(years) {
+            const yearSelect = document.getElementById('yearSelect');
+            yearSelect.innerHTML = '<option value="">Выберите год</option>';
+            years.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            });
+        }
+
+        function populateCitySelects(cities) {
+            const city1Select = document.getElementById('city1Select');
+            const city2Select = document.getElementById('city2Select');
+            city1Select.innerHTML = '';
+            city2Select.innerHTML = '';
+
+            // Определяем города по умолчанию
+            const defaultCity1 = "New York City, New York";
+            const defaultCity2 = "Los Angeles, California";
+
+            cities.forEach(city => {
+                const option1 = new Option(city, city);
+                const option2 = new Option(city, city);
+                city1Select.add(option1);
+                city2Select.add(option2);
+            });
+            city1Select.value = defaultCity1;
+            city2Select.value = defaultCity2;
+        }
+
+        // Функция загрузки данных
+        async function loadSalesData(year) {
+            if (!year || isLoading) return;
+            
+            setLoadingState(true);
+            toggleContentVisibility(true);            
+            
+            try {
+                const response = await fetch(`/api/data/sales-by-city/${year}`);
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+
+                // updateTable(data.top_cities);
+                // В функции loadSalesData будем передавать в updateTable весь объект data, 
+                // а не только его часть.
+                updateTable(data);
+                
+                // Обновляем блок "Сводная информация"
+                updateStats(data);
+
+            } catch (error) {
+                showError('Ошибка загрузки данных: ' + error.message);
+                toggleContentVisibility(false);
+
+            } finally {
+                setLoadingState(false);
+            }
+        }
+
+        function setLoadingState(loading) {
+            isLoading = loading;
+            document.getElementById('yearSelect').disabled = loading;
+            document.getElementById('tableContainer').classList.toggle('updating', loading);
+        }
+
+        // Обновление таблицы (без пересоздания всей таблицы)
+        function updateTable(data) {
+            const tbody = document.getElementById('salesBody');
+            // Добавляем строки для топ-10 городов
+            tbody.innerHTML = data.top_cities.map((city, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td class="city-name">${city.city}<br><span class="state-name">${city.state}</span></td>
+                    <td>${city.count.toLocaleString()}</td>
+                    <td class="sales-amount">${formatCurrency(city.sales)}</td>
+                    <td class="share-percent">${Number(city.share).toFixed(2)}%</td>
+                </tr>
+            `).join('');
+
+            // Добавляем строку "Остальные" 
+            if (data.others_sales > 0) {
+                const othersShare = ((data.others_sales / data.total_sales) * 100).toFixed(2);
+                const othersRow = document.createElement('tr');
+                othersRow.className = 'others-row';
+                othersRow.innerHTML = `
+                    <td>-</td>
+                    <td class="city-name">Остальные</td>
+                    <td>-</td>
+                    <td class="sales-amount">${formatCurrency(data.others_sales)}</td>
+                    <td class="share-percent">${othersShare}%</td>
+                `;
+                tbody.appendChild(othersRow);
+            }
+
+            // Создаем круговую диаграмму
+            createPieChart(data);
+        }
+
+        function updateStats(data) {
+            document.querySelectorAll('#currentYear, #currentYearStats').forEach(el => el.textContent = data.year);
+            document.getElementById('totalSales').textContent = formatCurrency(data.total_sales);
+
+            // Считаем сумму заказов и выручки для топ-10
+            const totalOrders = data.top_cities.reduce((sum, city) => sum + city.count, 0);
+            document.getElementById('ordersCount').textContent = totalOrders.toLocaleString();
+
+            const top10Sales = data.top_cities.reduce((sum, city) => sum + city.sales, 0);
+            document.getElementById('top10Sales').textContent = formatCurrency(top10Sales);
+
+            // Считаем долю выручки топ-10
+            const top10Share = data.total_sales > 0 ? ((top10Sales / data.total_sales) * 100).toFixed(1) : 0;
+            document.getElementById('top10Share').textContent = `${top10Share}%`;
+        }
+
+        // Вспомогательные функции
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value);
+        }
+        
+        function toggleContentVisibility(showData, errorMessage = '') {
+            document.getElementById('dataContent').style.display = showData ? 'block' : 'none';
+            document.getElementById('emptyState').style.display = (showData || errorMessage) ? 'none' : 'flex';
+            document.getElementById('error').style.display = errorMessage ? 'block' : 'none';
+            document.getElementById('error').textContent = errorMessage;
+        }
+
+        function showError(message) {
+            toggleContentVisibility(false, message);
+        }
+        
+        // Обработчик изменения выбора года
+        document.getElementById('yearSelect').addEventListener('change', function() {
+            if (this.value) {
+                loadSalesData(this.value);
+            } else {
+                // Если год не выбран, показываем пустое состояние
+                toggleContentVisibility(false);
+            }
+        });
+
+        // Создание круговой диаграммы с легендой справа и долями на секторах
+        function createPieChart(data) {
+            const ctx = document.getElementById('pieChart').getContext('2d');
+            if (pieChart) pieChart.destroy();
+            
+            const labels = data.top_cities.map(c => c.city).concat(['Остальные']);
+            const values = data.top_cities.map(c => c.sales).concat([data.others_sales]);
+            
+            pieChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384',
+                            '#36A2EB'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw;
+                                    const total = data.total_sales;
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value.toFixed(2)} (${percentage}%)`;
+                                }
+                            }
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            font: {size: 14},
+                            formatter: (value, ctx) => {
+                                const total = ctx.chart._metasets[ctx.datasetIndex].total;
+                                const percentage = (value / total * 100).toFixed(1) + '%';
+                                return percentage;
+                            },
+                            anchor: 'end',    // Якорь у края сектора (ближе к окружности)
+                            align: 'start',  // Выравнивание относительно якоря по центру
+                            offset: 20,        // Отступ в пикселях от якоря (регулирует расстояние от границы)
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- Логика для сравнения городов ---
+        async function loadSalesComparison() {
+            const city1Select = document.getElementById('city1Select');
+            const city2Select = document.getElementById('city2Select');
+            const city1 = city1Select.value;
+            const city2 = city2Select.value;
+
+            if (city1 === city2) {
+                alert('Пожалуйста, выберите два разных города для сравнения.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/data/comparison?city1=${encodeURIComponent(city1)}&city2=${encodeURIComponent(city2)}`);
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+
+                // Используем новую функцию для форматирования названий городов
+                document.getElementById('city1Name').textContent = formatCityDisplay(city1);
+                document.getElementById('city2Name').textContent = formatCityDisplay(city2);
+                // document.getElementById('city1Name').textContent = city1;
+                // document.getElementById('city2Name').textContent = city2;
+                document.getElementById('comparisonContent').style.display = 'block';
+
+                createBarChart(data);
+
+            } catch (error) {
+                showError('Ошибка при сравнении городов: ' + error.message);
+            }
+        }
+
+        function createBarChart(data) {
+            const ctx = document.getElementById('barChart').getContext('2d');
+            if (barChart) {
+                barChart.destroy();
+            }
+
+            barChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.years,
+                    datasets: data.datasets.map((dataset, index) => ({
+                        ...dataset,
+                        backgroundColor: index === 0 ? 'rgba(54, 162, 235, 0.6)' : 'rgba(255, 99, 132, 0.6)',
+                        borderColor: index === 0 ? 'rgba(54, 162, 235, 1)' : 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        datalabels: {
+                            color: '#000000',      // цвет текста
+                            font: {
+                                size: 12,         // размер шрифта
+                                weight: 'bold'    // (по желанию) жирное начертание
+                            },
+                            anchor: 'end',      // якорь у верхнего края столбика
+                            align: 'end',       // выравнивание текста относительно якоря
+                            // Добавляем форматирование с двумя знаками после запятой
+                            // formatter: function(value) {
+                            //     // Форматируем число с двумя знаками после запятой
+                            //     return new Intl.NumberFormat('en-US', {
+                            //         minimumFractionDigits: 2,
+                            //         maximumFractionDigits: 2
+                            //     }).format(value);
+                            // }
+                            formatter: function(value) {
+                                return value.toFixed(2);
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: value => formatCurrency(value) }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Функция для преобразования "Город, Штат" в "Город (Штат)"
+        function formatCityDisplay(cityState) {
+            const [city, state] = cityState.split(', ');
+            return `${city} (${state})`;
+        }        
+
+    </script>
+</body>
+</html>
